@@ -1,29 +1,32 @@
-import matplotlib.pyplot as plt
 import numpy as np
+import pickle
+import os
 
+current_folder = os.path.dirname(os.path.abspath(__file__))
 
-def show_decision_surface(model, X, y, ax=None):
-    """
-    Helper function to visualize the decision surface of the trained model
-    :param model with predict method
-    :return: None
-    """
-    x_min, x_max = X[:, 0].min() - 0.1, X[:, 0].max() + 0.1
-    y_min, y_max = X[:, 1].min() - 0.1, X[:, 1].max() + 0.1
-    x_grid, y_grid = np.arange(x_min, x_max, 0.05), np.arange(y_min, y_max, 0.05)
-    xx, yy = np.meshgrid(x_grid, y_grid)
-    r1, r2 = xx.reshape(-1, 1), yy.reshape(-1, 1)
-    grid = np.hstack((r1, r2))
-    y_hat = model.predict(grid).reshape(-1, )
-    zz = y_hat.reshape(xx.shape)
+# Unicode characters used to print the tree
+VERTICAL = "\u2502"
+UP_IN = "\u250C"
+DOWN_IN = "\u2514"
+OUT_UP = "\u2518"
+OUT_DOWN = "\u2510"
 
-    if ax is None:
-        plt.contourf(xx, yy, zz, cmap='PiYG')
-        plt.scatter(X[:, 0], X[:, 1], c=y)
-        plt.show()
-    else:
-        ax.contourf(xx, yy, zz, cmap='PiYG')
-        ax.scatter(X[:, 0], X[:, 1], c=y)
+features = np.array([
+    [37, 44000, 1, 0],
+    [61, 52000, 1, 0],
+    [23, 44000, 0, 0],
+    [39, 38000, 0, 1],
+    [48, 49000, 0, 0],
+    [57, 92000, 0, 1],
+    [38, 41000, 0, 1],
+    [27, 35000, 1, 0],
+    [23, 26000, 1, 0],
+    [38, 45000, 0, 0],
+    [32, 50000, 0, 0],
+    [25, 52000, 1, 0]
+])
+labels = np.array([1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1])
+features_names = ["age", "salary", "resident", "siblings"]
 
 
 class Tester(object):
@@ -42,195 +45,182 @@ class Tester(object):
                 print("Question %s: [FAIL]" % question, comment)
 
 
-def testKNN(knnclass):
+def test_leaf(LeafNode):
     tester = Tester()
-    features = np.array([[1, 3], [1, 7], [2, 6], [3.5, 5], [4, 1], [5, 3.5], [6, 6], [7, 2], [8, 3], [8, 5]])
-    labels = np.array([1, -1, 1, 1, 1, 1, -1, -1, 1, -1, -1])
-    test_points = np.array([[1, 1.1], [2, 3], [8, 6], [7, 7], [9, 2]])
-    test_labels = np.array([1, 1, -1, -1, -1])
-    confusion = np.array([[2., 1.], [1., 1.]])
-    accuracy = 0.8
-    majority = np.array([1, -1])
-    ins = "\n X:" + str(features) + ",\nlabels:" + str(labels)
-    topic = "Testing KNN(3) "
+    labels = np.array([1, -1, -1, 1, -1, 1, -1, 2, 2, 2])
+    ins = "\nlabels:" + str(labels)
+    topic = "Testing LeafNode "
 
-    def test_majority():
-        outs = majority
-        comment = topic + "majority_vote" + ins + "\n expected output: " + str(outs)
-        knn = knnclass(3).fit(features, labels)
-        obtained = knn.majority_vote(np.array([[3, 4], [1, 6]]), np.array([[0, 0], [0, 0]]))
+    def test_compute_label():
+        outs = -1
+        comment = topic + "compute_label" + ins + "\n expected output:  \n" + str(outs)
+        leaf = LeafNode(labels)
+        obtained = leaf.compute_label(labels)
         comment = comment + "\n obtained: " + str(obtained)
         if np.allclose(obtained, outs, atol=1e-5):
             return True, comment
         return False, comment
 
-    def test_predict():
-        outs = test_labels
-        comment = topic + "predict" + ins + "\n expected output: " + str(outs)
-        knn = knnclass(3).fit(features, labels)
-        obtained = knn.predict(test_points)
-        comment = comment + "\n obtained: " + str(obtained)
-        if np.allclose(obtained, outs, atol=1e-5):
-            return True, comment
-        return False, comment
-
-    def test_confusion():
-        outs = confusion
-        comment = topic + "confusion" + ins + "\n expected output: " + str(outs)
-        knn = knnclass(3).fit(features, labels)
-        obtained = knn.confusion_matrix(test_points, np.array([1, -1, -1, 1, -1]))
-        comment = comment + "\n obtained: " + str(obtained)
-        if np.allclose(obtained, outs, atol=1e-5):
-            return True, comment
-        return False, comment
-
-    def test_accuracy():
-        outs = accuracy
-        comment = topic + "accuracy" + ins + "\n expected output: " + str(outs)
-        knn = knnclass(3).fit(features, labels)
-        obtained = knn.accuracy(test_points, np.array([1, 1, 1, -1, -1]))
-        comment = comment + "\n obtained: " + str(obtained)
-        if np.allclose(obtained, outs, atol=1e-5):
-            return True, comment
-        return False, comment
-
-    tester.add_test("1.1", test_majority)
-    tester.add_test("1.2", test_predict)
-    tester.add_test("1.3", test_confusion)
-    tester.add_test("1.4", test_accuracy)
+    tester.add_test("1.2", test_compute_label)
     tester.run()
 
 
-def testWeightedKNN(knnclass):
+def test_entropy(entropy_func):
     tester = Tester()
-    features = np.array([[1, 1], [1, 2], [2, 1], [5, 2], [3, 2], [8, 2], [2, 4]])
-    labels = np.array([1, -1, -1, 1, -1, 1, -1])
-    test_points = np.array([[1, 1.1], [3, 1], [7, 5], [2, 6], [4, 4]])
-    test_labels = np.array([1, -1, 1, -1, -1])
-    majority = np.array([-1, 1])
-    ins = "\n X:" + str(features) + ",\nlabels:" + str(labels)
-    topic = "Testing WeightedKNN(3) "
+    labels = np.array([1, 1, 2, 2, 3, 3, 3, 3])
+    ins = "\nlabels:" + str(labels)
+    topic = "Testing Entropy Function "
 
-    def test_vote():
-        outs = majority
-        comment = topic + "weighted_vote" + ins + "\n expected output: " + str(outs)
-        knn = knnclass(3).fit(features, labels)
-        obtained = knn.weighted_vote(np.array([[1, 2], [3, 4]]), np.array([[0.1, 0.2], [1, 2]]))
+    def test_entropyfunc():
+        outs = 1.0397207708399179
+        comment = topic + ins + "\n expected output:  \n" + str(outs)
+        obtained = entropy_func(labels)
         comment = comment + "\n obtained: " + str(obtained)
         if np.allclose(obtained, outs, atol=1e-5):
             return True, comment
         return False, comment
 
-    def test_predict():
-        outs = test_labels
-        comment = topic + "predict" + ins + "\n expected output: " + str(outs)
-        knn = knnclass(3).fit(features, labels)
-        obtained = knn.predict(test_points)
+    #tester.add_test("1.3", test_entropyfunc)
+    #tester.run()
+
+def test_gini(gini_func):
+    tester = Tester()
+    labels = np.array([1, 1, 2, 2, 3, 3, 3, 3])
+    ins = "\nlabels:" + str(labels)
+    topic = "Testing Gini Index Function "
+
+    def test_ginifunc():
+        outs = 0.625
+        comment = topic + ins + "\n expected output:  \n" + str(outs)
+        obtained = gini_func(labels)
         comment = comment + "\n obtained: " + str(obtained)
         if np.allclose(obtained, outs, atol=1e-5):
             return True, comment
         return False, comment
 
-    tester.add_test("3.1", test_vote)
-    tester.add_test("3.2", test_predict)
+    tester.add_test("1.3", test_ginifunc)
     tester.run()
 
 
-def test_threshold(threshold_func):
+def test_information_gain(information_gain_func, entropy_func):
+    tester = Tester()
+    labels = np.array([0, 0, 1, 1, 2, 2])
+    left_indices = np.array([0, 1, 3])
+    right_indices = np.array([2, 4, 5])
+
+    ins = "\nlabels:" + str(labels) + "\nleft_indices:" + str(left_indices) + "\nright_indices" + str(right_indices)
+    topic = "Testing Information Gain Function "
+
+    def test_infogain():
+        outs = 0.22222222222222232
+        comment = topic + ins + "\n expected output:  \n" + str(outs)
+        obtained = information_gain_func(labels, left_indices, right_indices, entropy_func)
+        comment = comment + "\n obtained: " + str(obtained)
+        if np.allclose(obtained, outs, atol=1e-5):
+            return True, comment
+        return False, comment
+
+    tester.add_test("1.4", test_infogain)
+    tester.run()
+
+
+def test_best_partition(best_partition_func, entropy_func):
+    tester = Tester()
+    labels = np.array([0, 0, 1, 1, 2, 2])
     features = np.array([
-        [39, 38000, 0, 1],
-        [48, 49000, 0, 0],
-        [57, 92000, 0, 1],
-        [38, 41000, 0, 1],
+        [1, 0, 0],
+        [1, 1, 0],
+        [0, 1, 1],
+        [1, 0, 1],
+        [1, 1, 1],
+        [0, 0, 0]
     ])
-    labels = np.array([1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1])
-    expected = np.array([[0, 0, 0, 1], [1, 0, 0, 0], [1, 1, 0, 1], [0, 0, 0, 1]])
 
-    tester = Tester()
-    ins = "\n X:" + str(features)
-    topic = "Testing threshold_features(features, 40, 50000) "
+    ins = "\n X:" + str(features) + ",\nlabels:" + str(labels)
+    topic = "Testing Best Partition Function "
 
-    def test_thresh():
-        outs = expected
-        comment = topic + ins + "\n expected output: " + str(outs)
-        obtained = threshold_func(features, 40, 50000)
+    def test_partition():
+        outs = (2, 0.5, 0.22222222222222232)
+        comment = topic + ins + "\n expected output:  \n" + str(outs)
+        obtained = best_partition_func(features, labels, entropy_func)
         comment = comment + "\n obtained: " + str(obtained)
         if np.allclose(obtained, outs, atol=1e-5):
             return True, comment
         return False, comment
 
-    tester.add_test("4.1", test_thresh)
+    tester.add_test("1.5", test_partition)
+    tester.run()
+
+def test_tree_build(DecisionTree, gini_func):
+    tester = Tester()
+    treefile = open(os.path.join(current_folder, "tree_depth3_min2_gini.pickle"),'rb')
+    correct_tree = pickle.load(treefile)
+    treefile.close()
+    #correct_tree = np.load(os.path.join(current_folder, "tree_depth3_min2_entropy.npy"), allow_pickle=True)[0]
+    topic = "Testing DecisionTree build with depth 3 and min_samples_split 2"
+    expected_tree = "\n".join(_node_to_string(correct_tree.root, features_names)[0])
+    ins = ", using Problem1 features, and labels"
+
+    def test_build():
+        tree = DecisionTree(max_depth=3, min_samples_split=2, impurity_measure=gini_func).fit(features, labels)
+        obtained_tree = "\n".join(_node_to_string(tree.root, features_names)[0])
+        comment = topic + ins + "\n expected output: \n" + expected_tree + "\n obtained: " + obtained_tree
+        if compare_trees(correct_tree, tree):
+            return True, comment
+        return False, comment
+
+    tester.add_test("1.6", test_build)
     tester.run()
 
 
-def test_NB(nb_class):
-    features = np.array([
-        [0, 1, 0, 1],
-        [0, 1, 0, 0],
-        [1, 0, 1, 0],
-        [0, 0, 0, 1],
-        [1, 1, 1, 1]
-    ])
-    labels = np.array([1, 0, 1, 0, 0])
-    classes_log = np.array([-0.51082562, -0.91629073])
-    features_log = [np.array([[-0.40546511, -1.09861229],
-                              [-0.69314718, -0.69314718]]),
-                    np.array([[-1.09861229, -0.40546511],
-                              [-0.69314718, -0.69314718]]),
-                    np.array([[-0.40546511, -1.09861229],
-                              [-0.69314718, -0.69314718]]),
-                    np.array([[-1.09861229, -0.40546511],
-                              [-0.69314718, -0.69314718]])]
-    jll = np.array([[-1.62186043, -2.77258872],
-                    [-2.31500761, -2.77258872],
-                    [-4.39444915, -2.77258872],
-                    [-2.31500761, -2.77258872],
-                    [-3.00815479, -2.77258872]])
-    predict = np.array([0, 0, 1, 0, 0])
-    tester = Tester()
-    ins = "\n X:" + str(features)
-    topic = "Testing NaiveBayes "
+def _node_to_string(root_node, features_names):
+    if root_node is None:
+        return "None"
+    if 'leaf' in str(type(root_node)).lower():
+        return [VERTICAL + "label: %i" % root_node.label], 0
+    else:
+        string = ["%s" % features_names[root_node.feature_id], "%.2f" % root_node.threshold]
+        max_len = max([len(s) for s in string])
+        string[0] = "|" + string[0] + " " * (max_len - len(string[0])) + VERTICAL + OUT_UP
+        string[1] = "|" + string[1] + " " * (max_len - len(string[1])) + VERTICAL + OUT_DOWN
+        left, left_pos = _node_to_string(root_node.left_child, features_names)
+        right, right_pos = _node_to_string(root_node.right_child, features_names)
 
-    def test_classes():
-        outs = classes_log
-        comment = topic + "classes_log_prob" + ins + "\n expected output: " + str(outs)
-        nb = nb_class().fit(features, labels)
-        obtained = nb.classes_log_probability
-        comment = comment + "\n obtained: " + str(obtained)
-        if np.allclose(obtained, outs, atol=1e-5):
-            return True, comment
-        return False, comment
+        for i in range(0, left_pos):
+            left[i] = " " + left[i]
+        left[left_pos] = UP_IN + left[left_pos]
+        for i in range(left_pos + 1, len(left)):
+            left[i] = VERTICAL + left[i]
 
-    def test_features():
-        outs = features_log
-        comment = topic + "features_log_likelhd" + ins + "\n expected output: " + str(outs)
-        nb = nb_class().fit(features, labels)
-        obtained = nb.features_log_likelihood
-        comment = comment + "\n obtained: " + str(obtained)
-        if np.allclose(obtained, outs, atol=1e-5):
-            return True, comment
-        return False, comment
+        for i in range(0, right_pos):
+            right[i] = VERTICAL + right[i]
+        right[right_pos] = DOWN_IN + right[right_pos]
+        for i in range(right_pos + 1, len(right)):
+            right[i] = " " + right[i]
+        left = [" " * (max_len + 2) + l for l in left]
+        right = [" " * (max_len + 2) + r for r in right]
+        return left + string + right, len(left)
 
-    def test_jll():
-        outs = jll
-        comment = topic + "joint_log_likelhd(features)" + ins + "\n expected output: " + str(outs)
-        nb = nb_class().fit(features, labels)
-        obtained = nb.joint_log_likelihood(features)
-        comment = comment + "\n obtained: " + str(obtained)
-        if np.allclose(obtained, outs, atol=1e-5):
-            return True, comment
-        return False, comment
-    def test_predict():
-        outs = predict
-        comment = topic + "predict(features)" + ins + "\n expected output: " + str(outs)
-        nb = nb_class().fit(features, labels)
-        obtained = nb.predict(features)
-        comment = comment + "\n obtained: " + str(obtained)
-        if np.allclose(obtained, outs, atol=1e-5):
-            return True, comment
-        return False, comment
-    tester.add_test("4.3", test_classes)
-    tester.add_test("4.4", test_features)
-    # tester.add_test("4.5", test_jll)
-    # tester.add_test("4.6", test_predict)
-    tester.run()
+
+def _compare_node(node1, node2):
+    # Not equal if one is leaf and another is parent
+    if type(node1) != type(node2):
+        return False
+    # leaf nodes are equal if they have the same label
+    if 'leaf' in str(type(node1)).lower():
+        return node1.label == node2.label
+    # parent nodes are equal if they have the same feature_id, threshold, and equal children
+    compare_values = (node1.feature_id == node2.feature_id) and np.isclose(node1.threshold, node2.threshold, atol=1e-5)
+    if not compare_values:
+        return False
+    return _compare_node(node1.left_child, node2.left_child) and _compare_node(node1.right_child, node2.right_child)
+
+
+def compare_trees(tree1, tree2):
+    return _compare_node(tree1.root, tree2.root)
+
+
+def print_tree(decision_tree, features_names=None):
+    if features_names is None:
+        features_names= ["feat_%i" % i for i in range(decision_tree.num_features)]
+    print("\n".join(_node_to_string(decision_tree.root, features_names)[0]))
